@@ -9,6 +9,8 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="SkiaSharp" Version="4.155.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.155.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />

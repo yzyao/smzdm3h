@@ -35,7 +35,11 @@ public sealed class StateStore
         var state = await JsonSerializer.DeserializeAsync<MonitorState>(stream, JsonOptions, cancellationToken)
             ?? throw new InvalidDataException("state.json 为空；请恢复备份，或移走文件后重新建立基线。");
         if (state.Version is not (1 or 2) || state.SourceKey is null || state.DestinationKey is null ||
-            (state.Pending is not null && !ValidText(state.Pending.Text)) ||
+            (state.Pending is not null && (!ValidText(state.Pending.Text) ||
+                (state.Pending.Items is not null && (state.Pending.Items.Count is < 1 or > 20 ||
+                    MessageFormatter.PlainText(state.Pending.Text).Length > PhotoMessageFormatter.MaxLength ||
+                    state.Pending.Items.Any(x => x is null || string.IsNullOrEmpty(x.Id) || string.IsNullOrEmpty(x.Url)) ||
+                    state.Pending.Items.Select(x => x.Id).Distinct().Count() != state.Pending.Items.Count)))) ||
             (state.Published is not null && (state.Published.MessageId <= 0 || !ValidText(state.Published.Text))) ||
             (state.Report is not null && (state.Report.Events is null ||
                 state.Report.Events.Any(x => x is null || x.Deal is null || string.IsNullOrEmpty(x.Deal.Id)) ||

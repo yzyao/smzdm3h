@@ -41,7 +41,17 @@ public sealed partial class SmzdmParser
             var price = row.SelectSingleNode(".//*[contains(concat(' ',normalize-space(@class),' '),' z-highlight ')]")
                 ?? row.SelectSingleNode(".//*[contains(concat(' ',normalize-space(@class),' '),' feed-block-price ')]")
                 ?? row.SelectSingleNode(".//*[contains(concat(' ',normalize-space(@class),' '),' feed-price ')]");
-            results.Add(new Deal(id, results.Count + 1, title, Clean(price?.InnerText ?? ""), canonicalUrl));
+            var image = row.SelectSingleNode(".//*[contains(concat(' ',normalize-space(@class),' '),' feed-block-img ')]//img")
+                ?? row.SelectSingleNode(".//a[contains(@href,'/p/')]//img");
+            var imageUrl = "";
+            if (image is not null)
+            {
+                foreach (var attribute in new[] { "data-original", "data-src", "data-lazy-src", "src" })
+                {
+                    if (ProductImageUrl.TryNormalize(image.GetAttributeValue(attribute, ""), out imageUrl)) break;
+                }
+            }
+            results.Add(new Deal(id, results.Count + 1, title, Clean(price?.InnerText ?? ""), canonicalUrl, imageUrl));
             if (results.Count == topCount) break;
         }
         if (results.Count < topCount)

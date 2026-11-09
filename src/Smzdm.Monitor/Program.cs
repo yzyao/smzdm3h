@@ -43,7 +43,7 @@ try
             : parser.Parse(await File.ReadAllTextAsync(htmlPath), monitor.TopCount);
         var preview = Leaderboard.Compare(null, deals, DateTimeOffset.UtcNow, monitor);
         var report = NotificationPolicy.BuildReport(null, preview, policy.PeriodStart(preview.Snapshot.CapturedAt));
-        Console.WriteLine(MessageFormatter.PlainText(MessageFormatter.Format(report, preview.Snapshot, monitor, policy)));
+        Console.WriteLine(MessageFormatter.PlainText(PhotoMessageFormatter.Format(report, preview.Snapshot, monitor, policy)));
         if (policy.IsQuiet(preview.Snapshot.CapturedAt)) Console.WriteLine("当前为静默时段，正式运行时不会请求 Telegram。");
         Console.WriteLine($"预览完成：{deals.Count} 条；未发 Telegram，未修改状态。");
         return 0;
@@ -54,8 +54,12 @@ try
     builder.Services.AddSingleton(policy);
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IDealSource>(_ => new SmzdmClient(SmzdmClient.CreateHttpClient(), parser, monitor));
-    builder.Services.AddSingleton<INotificationSender>(_ => new TelegramSender(new HttpClient
-        { Timeout = TimeSpan.FromSeconds(30) }, telegram, policy, TimeProvider.System));
+    builder.Services.AddSingleton<ILeaderboardPhotoBuilder>(provider => new LeaderboardPhotoBuilder(
+        LeaderboardPhotoBuilder.CreateHttpClient(), monitor,
+        provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LeaderboardPhotoBuilder>>()));
+    builder.Services.AddSingleton<INotificationSender>(provider => new TelegramSender(new HttpClient
+        { Timeout = TimeSpan.FromSeconds(30) }, telegram, policy, TimeProvider.System,
+        provider.GetRequiredService<ILeaderboardPhotoBuilder>()));
     builder.Services.AddSingleton<MonitorEngine>();
     builder.Services.AddSingleton<StartupNotifier>();
     builder.Services.AddHostedService<MonitorWorker>();

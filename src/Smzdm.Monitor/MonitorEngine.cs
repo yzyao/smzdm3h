@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace Smzdm.Monitor;
 
@@ -43,7 +46,7 @@ public sealed class MonitorEngine(
             Published = State.Published,
             // Coalesce retries into one current report; never accumulate historical messages.
             Pending = quiet ? null : new PendingNotification(
-                MessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now)
+                PhotoMessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now, deals)
         };
         await SaveAsync(next, cancellationToken);
         logger.LogInformation("榜单已保存：{Count} 条，新进 {New}，掉榜 {Exits}，变化 {Changes}，新增霸榜 {Dominant}；{Delivery}。",
@@ -62,15 +65,17 @@ public sealed class MonitorEngine(
             return;
         }
         var published = State.Published?.PeriodStart == pending.PeriodStart ? State.Published : null;
-        if (published?.Text == pending.Text)
+        var payloadKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            JsonSerializer.Serialize(new { pending.Text, pending.Items }))));
+        if (published?.PayloadKey == payloadKey)
         {
             await SaveAsync(Copy(pending: null), cancellationToken);
             return;
         }
-        var messageId = await sender.PublishAsync(pending.Text, published?.MessageId,
+        var messageId = await sender.PublishLeaderboardAsync(pending, published?.MessageId,
             policy.PeriodEnd(pending.PeriodStart), cancellationToken);
         var next = Copy(pending: null);
-        next.Published = new PublishedMessage(messageId, pending.PeriodStart, pending.Text);
+        next.Published = new PublishedMessage(messageId, pending.PeriodStart, pending.Text, payloadKey);
         await SaveAsync(next, cancellationToken);
         logger.LogInformation("Telegram 榜单{Action}成功，消息 ID {MessageId}。", published is null ? "发送" : "编辑", messageId);
     }

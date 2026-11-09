@@ -7,7 +7,10 @@ RUN dotnet publish src/Smzdm.Monitor/Smzdm.Monitor.csproj -c Release -o /out --n
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-RUN mkdir -p /data && chown app:app /data
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libfontconfig1 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /data && chown app:app /data
 COPY --from=build /out/ .
 ENV TZ=Asia/Shanghai Monitor__DataDirectory=/data
 USER $APP_UID

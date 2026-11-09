@@ -225,6 +225,28 @@ public sealed class PersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task ImageChangesInSameMinuteEditExistingMessageEvenWhenCaptionIsUnchanged()
+    {
+        var source = new StubSource();
+        var sender = new StubSender();
+        var engine = Engine(source, sender);
+        await engine.InitializeAsync(default);
+        await engine.CollectAsync(default);
+        await engine.DeliverAsync(default);
+        var firstText = engine.State.Published!.Text;
+        var id = engine.State.Published.MessageId;
+        source.Deals = source.Deals.Select(x => x with { ImageUrl = "https://qny.smzdm.com/new.jpg" }).ToList();
+        await engine.CollectAsync(default);
+        Assert.Equal(firstText, engine.State.Pending!.Text);
+        var restarted = Engine(source, sender);
+        await restarted.InitializeAsync(default);
+        Assert.Equal("https://qny.smzdm.com/new.jpg", restarted.State.Pending!.Items![0].ImageUrl);
+        await restarted.DeliverAsync(default);
+        Assert.Equal(2, sender.Calls.Count);
+        Assert.Equal(id, sender.Calls[1].MessageId);
+    }
+
+    [Fact]
     public async Task ChangingSourceCannotSilentlyCompareUnrelatedBoards()
     {
         var source = new StubSource();
@@ -263,6 +285,9 @@ public sealed class PersistenceTests : IDisposable
         public int FailOnCall { get; init; }
         public string DestinationKey { get; init; } = "test";
         public List<PublishCall> Calls { get; } = [];
+        public Task<long> PublishLeaderboardAsync(PendingNotification notification, long? messageId,
+            DateTimeOffset expiresAt, CancellationToken cancellationToken) =>
+            PublishAsync(notification.Text, messageId, expiresAt, cancellationToken);
         public Task<long> PublishAsync(string message, long? messageId, DateTimeOffset expiresAt, CancellationToken cancellationToken)
         {
             Calls.Add(new(message, messageId));

@@ -98,6 +98,8 @@ public sealed class StartupNotifierTests
         public string DestinationKey => "test";
         public Exception? Failure { get; init; }
         public List<Call> Calls { get; } = [];
+        public Task<long> PublishLeaderboardAsync(PendingNotification notification, long? messageId,
+            DateTimeOffset expiresAt, CancellationToken cancellationToken) => throw new InvalidOperationException("启动通知必须为独立文本消息。");
         public Task<long> PublishAsync(string message, long? messageId, DateTimeOffset expiresAt, CancellationToken cancellationToken)
         {
             Calls.Add(new(message, messageId, expiresAt));

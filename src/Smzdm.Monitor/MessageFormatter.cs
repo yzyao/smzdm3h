@@ -64,7 +64,7 @@ public static partial class MessageFormatter
 
     public static string PlainText(string html) => WebUtility.HtmlDecode(Tags().Replace(html, ""));
 
-    private static string Short(string value, int length)
+    internal static string Short(string value, int length)
     {
         value = Whitespace().Replace(value, " ").Trim();
         if (value.Length <= length) return value;

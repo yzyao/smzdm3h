@@ -117,7 +117,13 @@ public sealed class TelegramTests
     }
 
     private static TelegramSender Sender(HttpClient client, TestClock? clock = null) =>
-        new(client, Options, new NotificationPolicy(new()), clock ?? new());
+        new(client, Options, new NotificationPolicy(new()), clock ?? new(), new UnusedPhotoBuilder());
+
+    private sealed class UnusedPhotoBuilder : ILeaderboardPhotoBuilder
+    {
+        public Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("文本消息不应生成图片。");
+    }
 
     private sealed class StubHandler(string response) : HttpMessageHandler
     {
