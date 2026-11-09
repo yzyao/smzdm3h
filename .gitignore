@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/TestResults/
+.vs/
+.idea/
+.env
+.env.*
+!.env.example
+data/
+artifacts/
+smzdm-sample.html
+*.user

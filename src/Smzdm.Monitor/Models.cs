@@ -1,0 +1,34 @@
+namespace Smzdm.Monitor;
+
+public sealed record Deal(string Id, int Rank, string Title, string Price, string Url);
+public sealed record RankedDeal(Deal Deal, int ConsecutivePolls, DateTimeOffset FirstSeenAt);
+public sealed record Snapshot(DateTimeOffset CapturedAt, List<RankedDeal> Items);
+public sealed record PendingNotification(string Text, DateTimeOffset PeriodStart, DateTimeOffset CapturedAt);
+public sealed record PublishedMessage(long MessageId, DateTimeOffset PeriodStart, string Text);
+public sealed record ReportEvent(Deal Deal, bool Entered = false, bool Changed = false, bool Exited = false,
+    bool ReachedDominance = false, int? FromRank = null, string? FromPrice = null, bool PriceChanged = false);
+public sealed record NotificationReport(DateTimeOffset PeriodStart, List<ReportEvent> Events);
+
+public sealed class MonitorState
+{
+    public int Version { get; set; } = 2;
+    public string SourceKey { get; set; } = "";
+    public Snapshot? Snapshot { get; set; }
+    public string DestinationKey { get; set; } = "";
+    public NotificationReport? Report { get; set; }
+    public PendingNotification? Pending { get; set; }
+    public PublishedMessage? Published { get; set; }
+}
+
+public sealed record DealChange(RankedDeal Current, RankedDeal? Previous);
+public sealed record Comparison(
+    Snapshot Snapshot,
+    bool IsInitial,
+    List<RankedDeal> NewEntries,
+    List<RankedDeal> Exits,
+    List<DealChange> Changes,
+    List<RankedDeal> NewlyDominant)
+{
+    public bool ShouldNotify => IsInitial || NewEntries.Count > 0 || Exits.Count > 0 ||
+                                Changes.Count > 0 || NewlyDominant.Count > 0;
+}
