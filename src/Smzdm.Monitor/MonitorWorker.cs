@@ -5,7 +5,7 @@ namespace Smzdm.Monitor;
 
 public sealed class MonitorWorker(
     MonitorEngine engine, MonitorOptions options, StateStore store, ILogger<MonitorWorker> logger,
-    NotificationPolicy policy) : BackgroundService
+    NotificationPolicy policy, StartupNotifier startupNotifier) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -29,6 +29,8 @@ public sealed class MonitorWorker(
             options.IntervalMinutes, options.TopCount, options.DominancePolls);
         logger.LogInformation("每 {Hours} 小时新发一条 Telegram 榜单，其间编辑；静默 {Start:00}:00–{End:00}:00（{Zone}）。",
             policy.Options.NewMessageIntervalHours, policy.Options.QuietStartHour, policy.Options.QuietEndHour, policy.Options.TimeZoneId);
+        nextDelivery = await startupNotifier.NotifyAsync(engine.State.Snapshot, nextFetch, stoppingToken)
+            ?? DateTimeOffset.MinValue;
         while (!stoppingToken.IsCancellationRequested)
         {
             if (DateTimeOffset.UtcNow >= nextFetch)

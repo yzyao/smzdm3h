@@ -11,6 +11,7 @@ services:
       Monitor__DominancePolls: ${MONITOR_DOMINANCE_POLLS:-3}
       Monitor__DataDirectory: /data
       Monitor__Cookie: ${SMZDM_COOKIE:-}
+      Notifications__NotifyOnStartup: ${NOTIFY_ON_STARTUP:-true}
       Notifications__NewMessageIntervalHours: ${NOTIFY_INTERVAL_HOURS:-1}
       Notifications__QuietStartHour: ${QUIET_START_HOUR:-1}
       Notifications__QuietEndHour: ${QUIET_END_HOUR:-7}

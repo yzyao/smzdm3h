@@ -2,6 +2,7 @@ namespace Smzdm.Monitor;
 
 public sealed class NotificationOptions
 {
+    public bool NotifyOnStartup { get; set; } = true;
     public int NewMessageIntervalHours { get; set; } = 1;
     public int QuietStartHour { get; set; } = 1;
     public int QuietEndHour { get; set; } = 7;

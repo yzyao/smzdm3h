@@ -57,6 +57,7 @@ try
     builder.Services.AddSingleton<INotificationSender>(_ => new TelegramSender(new HttpClient
         { Timeout = TimeSpan.FromSeconds(30) }, telegram, policy, TimeProvider.System));
     builder.Services.AddSingleton<MonitorEngine>();
+    builder.Services.AddSingleton<StartupNotifier>();
     builder.Services.AddHostedService<MonitorWorker>();
     using var host = builder.Build();
     if (once)
