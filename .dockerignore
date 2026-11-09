@@ -1,0 +1,10 @@
+**/bin
+**/obj
+.git
+.env
+.env.*
+data
+artifacts
+tests
+**/*.user
+smzdm-sample.html

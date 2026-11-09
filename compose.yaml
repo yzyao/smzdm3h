@@ -1,0 +1,41 @@
+services:
+  smzdm-monitor:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: Asia/Shanghai
+      Monitor__SourceUrl: https://faxian.smzdm.com/h2s0t0f0c0p1/
+      Monitor__IntervalMinutes: ${MONITOR_INTERVAL_MINUTES:-30}
+      Monitor__TopCount: ${MONITOR_TOP_COUNT:-20}
+      Monitor__DominancePolls: ${MONITOR_DOMINANCE_POLLS:-3}
+      Monitor__DataDirectory: /data
+      Monitor__Cookie: ${SMZDM_COOKIE:-}
+      Notifications__NewMessageIntervalHours: ${NOTIFY_INTERVAL_HOURS:-1}
+      Notifications__QuietStartHour: ${QUIET_START_HOUR:-1}
+      Notifications__QuietEndHour: ${QUIET_END_HOUR:-7}
+      Notifications__TimeZoneId: Asia/Shanghai
+      Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:?请在 .env 设置 TELEGRAM_BOT_TOKEN}
+      Telegram__ChatId: ${TELEGRAM_CHAT_ID:?请在 .env 设置 TELEGRAM_CHAT_ID}
+      Telegram__MessageThreadId: ${TELEGRAM_MESSAGE_THREAD_ID:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      ALL_PROXY: ${ALL_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1}
+    volumes:
+      - monitor-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  monitor-data:
