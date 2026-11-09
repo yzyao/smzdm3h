@@ -1,9 +1,13 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG TARGETARCH
 WORKDIR /source
 COPY src/Smzdm.Monitor/Smzdm.Monitor.csproj src/Smzdm.Monitor/
-RUN dotnet restore src/Smzdm.Monitor/Smzdm.Monitor.csproj
+RUN dotnet restore src/Smzdm.Monitor/Smzdm.Monitor.csproj -a "$TARGETARCH" /p:UseAppHost=false /p:SelfContained=false
 COPY src/Smzdm.Monitor/ src/Smzdm.Monitor/
-RUN dotnet publish src/Smzdm.Monitor/Smzdm.Monitor.csproj -c Release -o /out --no-restore /p:UseAppHost=false
+# Publish for the target Linux architecture so other platforms' native libraries
+# and their debugging symbols do not become part of the runtime image.
+RUN dotnet publish src/Smzdm.Monitor/Smzdm.Monitor.csproj -c Release -a "$TARGETARCH" --self-contained false \
+    -o /out --no-restore /p:UseAppHost=false /p:DebugType=None /p:DebugSymbols=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
