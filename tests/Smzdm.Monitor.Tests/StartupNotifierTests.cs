@@ -41,10 +41,11 @@ public sealed class StartupNotifierTests
         var sender = new StubSender();
         var clock = new TestClock { Now = DateTimeOffset.Parse("2026-11-10T07:00:00+08:00") };
         var snapshot = new Snapshot(clock.Now.AddMinutes(-10), []);
-        await Notifier(sender, clock).NotifyAsync(snapshot, clock.Now.AddMinutes(20), default);
+        var nextFetch = new CollectionSchedule(new(), new(new())).AtOrAfter(clock.Now);
+        await Notifier(sender, clock).NotifyAsync(snapshot, nextFetch, default);
         var text = MessageFormatter.PlainText(Assert.Single(sender.Calls).Text);
         Assert.Contains("最近成功采集：2026-11-10 06:50:00", text);
-        Assert.Contains("下次采集：2026-11-10 07:20:00", text);
+        Assert.Contains("下次采集：立即", text);
     }
 
     [Fact]

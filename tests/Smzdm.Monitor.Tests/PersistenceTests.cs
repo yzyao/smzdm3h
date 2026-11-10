@@ -11,6 +11,50 @@ public sealed class PersistenceTests : IDisposable
     private MonitorOptions Options => new() { DataDirectory = _directory, TopCount = 2 };
 
     [Fact]
+    public async Task SilentStartupBaselineDoesNotPrepareAnyLeaderboardNotification()
+    {
+        _clock.Now = DateTimeOffset.Parse("2026-11-10T10:12:00+08:00");
+        var sender = new StubSender();
+        var engine = Engine(new StubSource(), sender);
+        await engine.InitializeAsync(default);
+        await engine.CollectBaselineAsync(default);
+        await engine.DeliverAsync(default);
+        Assert.NotNull(engine.State.Snapshot);
+        Assert.Null(engine.State.Pending);
+        Assert.Empty(sender.Calls);
+    }
+
+    [Fact]
+    public async Task FirstHalfHourSlotDoesNotSendLateHourlyMessageButNextWholeHourDoes()
+    {
+        _clock.Now = DateTimeOffset.Parse("2026-11-10T10:30:00+08:00");
+        var sender = new StubSender();
+        var engine = Engine(new StubSource(), sender);
+        await engine.InitializeAsync(default);
+        await engine.CollectScheduledAsync(_clock.Now, default);
+        await engine.DeliverAsync(default);
+        Assert.Empty(sender.Calls);
+        Assert.Null(engine.State.Pending);
+        _clock.Now += TimeSpan.FromMinutes(30);
+        await engine.CollectScheduledAsync(_clock.Now, default);
+        await engine.DeliverAsync(default);
+        Assert.Null(Assert.Single(sender.Calls).MessageId);
+    }
+
+    [Fact]
+    public async Task CollectionThatFinishesInNextPeriodCannotCreateLateMessage()
+    {
+        _clock.Now = DateTimeOffset.Parse("2026-11-10T11:00:03+08:00");
+        var sender = new StubSender();
+        var engine = Engine(new StubSource(), sender);
+        await engine.InitializeAsync(default);
+        await engine.CollectScheduledAsync(DateTimeOffset.Parse("2026-11-10T10:00:00+08:00"), default);
+        await engine.DeliverAsync(default);
+        Assert.Empty(sender.Calls);
+        Assert.Null(engine.State.Pending);
+    }
+
+    [Fact]
     public async Task UpgradeStartsRichMessageInsteadOfTryingToEditLegacyPhotoThenResumesEditing()
     {
         var source = new StubSource();

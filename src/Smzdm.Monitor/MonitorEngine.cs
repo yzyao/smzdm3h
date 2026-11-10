@@ -29,7 +29,14 @@ public sealed class MonitorEngine(
         }
     }
 
-    public async Task CollectAsync(CancellationToken cancellationToken)
+    public Task CollectAsync(CancellationToken cancellationToken) => CollectAsync(null, true, cancellationToken);
+
+    public Task CollectBaselineAsync(CancellationToken cancellationToken) => CollectAsync(null, false, cancellationToken);
+
+    public Task CollectScheduledAsync(DateTimeOffset scheduledAt, CancellationToken cancellationToken) =>
+        CollectAsync(scheduledAt, true, cancellationToken);
+
+    private async Task CollectAsync(DateTimeOffset? scheduledAt, bool prepareNotification, CancellationToken cancellationToken)
     {
         var deals = await source.FetchAsync(cancellationToken);
         var now = clock.GetUtcNow();
@@ -37,6 +44,14 @@ public sealed class MonitorEngine(
         var period = policy.PeriodStart(now);
         var report = NotificationPolicy.BuildReport(State.Report, comparison, period);
         var quiet = policy.IsQuiet(now);
+        var canNotify = prepareNotification && !quiet;
+        if (scheduledAt is { } slot)
+        {
+            // An update slot may edit an existing rich message, but cannot create a late
+            // hourly message. Also discard a collection that finished in a different period.
+            canNotify &= policy.PeriodStart(slot) == period &&
+                (slot == period || State.Published is { IsRich: true } published && published.PeriodStart == period);
+        }
         var next = new MonitorState
         {
             SourceKey = State.SourceKey,
@@ -45,13 +60,13 @@ public sealed class MonitorEngine(
             Report = report,
             Published = State.Published,
             // Coalesce retries into one current report; never accumulate historical messages.
-            Pending = quiet ? null : new PendingNotification(
-                RichMessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now, deals, IsRich: true)
+            Pending = canNotify ? new PendingNotification(
+                RichMessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now, deals, IsRich: true) : null
         };
         await SaveAsync(next, cancellationToken);
         logger.LogInformation("榜单已保存：{Count} 条，新进 {New}，掉榜 {Exits}，变化 {Changes}，新增霸榜 {Dominant}；{Delivery}。",
             deals.Count, comparison.NewEntries.Count, comparison.Exits.Count, comparison.Changes.Count,
-            comparison.NewlyDominant.Count, quiet ? "静默时段不发送或编辑" : "待发布最新榜单");
+            comparison.NewlyDominant.Count, canNotify ? "待发布最新榜单" : "仅采集，不发送或编辑");
     }
 
     public async Task DeliverAsync(CancellationToken cancellationToken)

@@ -27,7 +27,7 @@ public sealed class StartupNotifier(
         var text = string.Join('\n',
             "✅ 什么值得买监控已启动",
             $"启动时间：{policy.LocalTime(now):yyyy-MM-dd HH:mm:ss}（{policy.Options.TimeZoneId}）",
-            $"采集：每 {monitor.IntervalMinutes} 分钟，TOP {monitor.TopCount}",
+            $"采集：每 {monitor.IntervalMinutes} 分钟，TOP {monitor.TopCount}（按本地零点对齐）",
             $"榜单：每 {policy.Options.NewMessageIntervalHours} 小时新发 1 条，其间更新原消息",
             $"霸榜：连续 {monitor.DominancePolls} 次在榜",
             $"静默：{quiet}",
