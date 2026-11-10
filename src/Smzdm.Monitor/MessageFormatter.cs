@@ -49,7 +49,7 @@ public static partial class MessageFormatter
                 if (change.PriceChanged) notes.Add($"价 {Short(change.FromPrice ?? "", 10)}→{Short(deal.Price, 10)}");
                 else if (change.Changed && change.FromRank == deal.Rank) notes.Add("有变化");
             }
-            if (item.ConsecutivePolls >= options.DominancePolls) notes.Add($"霸{item.ConsecutivePolls}次");
+            if (Leaderboard.IsDominant(item, snapshot.CapturedAt, options)) notes.Add($"霸榜≥{options.DominanceMinutes}分钟");
             html.Append($"{deal.Rank}. <a href=\"{WebUtility.HtmlEncode(deal.Url)}\">{WebUtility.HtmlEncode(Short(deal.Title, titleLimit))}</a>\n");
             html.Append(WebUtility.HtmlEncode(Short(string.IsNullOrWhiteSpace(deal.Price) ? "未标价" : deal.Price, priceLimit)));
             if (notes.Count > 0 && noteLimit > 0)

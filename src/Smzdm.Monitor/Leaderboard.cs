@@ -18,8 +18,13 @@ public static class Leaderboard
             current.Where(x => !old.ContainsKey(x.Deal.Id)).ToList(),
             old.Values.Where(x => !ids.Contains(x.Deal.Id)).OrderBy(x => x.Deal.Rank).ToList(),
             current.Where(x => old.TryGetValue(x.Deal.Id, out var entry) &&
-                (x.Deal.Rank != entry.Deal.Rank || x.Deal.Price != entry.Deal.Price || x.Deal.Title != entry.Deal.Title))
+                x.Deal != entry.Deal)
                 .Select(x => new DealChange(x, old[x.Deal.Id])).ToList(),
-            current.Where(x => x.ConsecutivePolls == options.DominancePolls).ToList());
+            current.Where(x => IsDominant(x, now, options) &&
+                (!continuous || !old.TryGetValue(x.Deal.Id, out var entry) ||
+                    !IsDominant(entry, previous!.CapturedAt, options))).ToList());
     }
+
+    public static bool IsDominant(RankedDeal item, DateTimeOffset now, MonitorOptions options) =>
+        now - item.FirstSeenAt >= TimeSpan.FromMinutes(options.DominanceMinutes);
 }

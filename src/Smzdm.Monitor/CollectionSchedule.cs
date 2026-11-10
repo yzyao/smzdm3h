@@ -11,7 +11,9 @@ public sealed class CollectionSchedule(MonitorOptions options, NotificationPolic
         var elapsed = (local - midnight).Ticks;
         var slot = midnight.AddTicks((elapsed / interval + (elapsed % interval == 0 ? 0 : 1)) * interval);
         // For intervals that do not divide a day, the next day's grid starts at midnight.
-        return (slot > midnight.AddDays(1) ? midnight.AddDays(1) : slot).ToUniversalTime();
+        if (slot > midnight.AddDays(1)) slot = midnight.AddDays(1);
+        var morning = policy.PeriodEnd(policy.PeriodStart(now));
+        return (slot < morning ? slot : morning).ToUniversalTime();
     }
 
     public DateTimeOffset After(DateTimeOffset now) => AtOrAfter(now.AddTicks(1));

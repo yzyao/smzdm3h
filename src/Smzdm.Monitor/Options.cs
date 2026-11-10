@@ -3,9 +3,9 @@ namespace Smzdm.Monitor;
 public sealed class MonitorOptions
 {
     public string SourceUrl { get; set; } = "https://faxian.smzdm.com/h2s0t0f0c0p1/";
-    public int IntervalMinutes { get; set; } = 30;
+    public int IntervalMinutes { get; set; } = 15;
     public int TopCount { get; set; } = 20;
-    public int DominancePolls { get; set; } = 3;
+    public int DominanceMinutes { get; set; } = 60;
     public string DataDirectory { get; set; } = "data";
     public string Cookie { get; set; } = "";
     public string UserAgent { get; set; } = "Mozilla/5.0";
@@ -15,8 +15,8 @@ public sealed class MonitorOptions
         if (!Uri.TryCreate(SourceUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != "https" || uri.Host != "faxian.smzdm.com")
             throw new InvalidOperationException("Monitor:SourceUrl 必须为 https://faxian.smzdm.com/ 下的榜单地址。");
-        if (IntervalMinutes is < 1 or > 1440 || TopCount is < 1 or > 20 || DominancePolls is < 2 or > 10000)
-            throw new InvalidOperationException("IntervalMinutes 范围 1–1440，图文榜单 TopCount 范围 1–20，DominancePolls 范围 2–10000。");
+        if (IntervalMinutes is < 1 or > 1440 || TopCount is < 1 or > 20 || DominanceMinutes is < 1 or > 10080)
+            throw new InvalidOperationException("IntervalMinutes 范围 1–1440，图文榜单 TopCount 范围 1–20，DominanceMinutes 范围 1–10080。");
         if (string.IsNullOrWhiteSpace(DataDirectory) || string.IsNullOrWhiteSpace(UserAgent))
             throw new InvalidOperationException("DataDirectory 和 UserAgent 不能为空。");
     }

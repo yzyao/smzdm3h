@@ -43,7 +43,7 @@ public static class PhotoMessageFormatter
                 if (change.FromRank is int rank && rank != deal.Rank)
                     markers.Add($"{(deal.Rank < rank ? "↑" : "↓")}{Math.Abs(rank - deal.Rank)}");
             }
-            if (item.ConsecutivePolls >= options.DominancePolls) markers.Add($"霸{item.ConsecutivePolls}");
+            if (Leaderboard.IsDominant(item, snapshot.CapturedAt, options)) markers.Add($"霸≥{options.DominanceMinutes}分");
             html.Append($"{deal.Rank}. <a href=\"{WebUtility.HtmlEncode(deal.Url)}\">{WebUtility.HtmlEncode(MessageFormatter.Short(deal.Title, titleLimit))}</a>");
             var price = string.IsNullOrWhiteSpace(deal.Price) ? "未标价" : deal.Price;
             if (events.TryGetValue(deal.Id, out var priceChange) && priceChange.PriceChanged)

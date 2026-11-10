@@ -6,10 +6,26 @@ namespace Smzdm.Monitor.Tests;
 public sealed class LeaderboardTests
 {
     private static readonly DateTimeOffset Start = DateTimeOffset.Parse("2026-11-09T00:00:00Z");
-    private readonly MonitorOptions _options = new() { TopCount = 2 };
+    private readonly MonitorOptions _options = new() { TopCount = 2, IntervalMinutes = 30 };
 
     internal static Deal Deal(string id, int rank = 1, string price = "10元") =>
         new(id, rank, $"商品 {id}", price, $"https://www.smzdm.com/p/{id}/");
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(15)]
+    public void DominanceDependsOnElapsedHourInsteadOfNumberOfScans(int interval)
+    {
+        var options = new MonitorOptions { IntervalMinutes = interval };
+        var previous = Leaderboard.Compare(null, [Deal("1")], Start, options).Snapshot;
+        for (var minute = interval; minute <= 60; minute += interval)
+        {
+            var current = Leaderboard.Compare(previous, [Deal("1")], Start.AddMinutes(minute), options);
+            Assert.Equal(minute == 60 ? 1 : 0, current.NewlyDominant.Count);
+            previous = current.Snapshot;
+        }
+        Assert.Empty(Leaderboard.Compare(previous, [Deal("1")], Start.AddMinutes(60 + interval), options).NewlyDominant);
+    }
 
     [Fact]
     public void DetectsNewExitRankPriceAndTitleChanges()
@@ -23,7 +39,7 @@ public sealed class LeaderboardTests
         Assert.Equal(2, change.Current.ConsecutivePolls);
         Assert.Equal(1, change.Previous!.Deal.Rank);
         var policy = new NotificationPolicy(new());
-        var report = NotificationPolicy.BuildReport(null, next, policy.PeriodStart(next.Snapshot.CapturedAt));
+        var report = NotificationPolicy.BuildReport(next, policy.PeriodStart(next.Snapshot.CapturedAt));
         var text = MessageFormatter.PlainText(MessageFormatter.Format(report, next.Snapshot, _options, policy));
         Assert.Contains("#1→#2", text);
         Assert.Contains("10元→9元", text);
@@ -70,7 +86,7 @@ public sealed class LeaderboardTests
         var options = new MonitorOptions { TopCount = count };
         var comparison = Leaderboard.Compare(null, deals, Start, options);
         var policy = new NotificationPolicy(new());
-        var report = NotificationPolicy.BuildReport(null, comparison, policy.PeriodStart(Start));
+        var report = NotificationPolicy.BuildReport(comparison, policy.PeriodStart(Start));
         var text = MessageFormatter.Format(report, comparison.Snapshot, options, policy);
         Assert.True(MessageFormatter.PlainText(text).Length <= MessageFormatter.MaxLength);
         Assert.All(deals, x => Assert.Contains(x.Url, text));

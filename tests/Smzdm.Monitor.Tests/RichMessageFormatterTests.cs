@@ -8,6 +8,15 @@ namespace Smzdm.Monitor.Tests;
 public sealed class RichMessageFormatterTests
 {
     [Fact]
+    public void ReturneeUsesReturnTagInsteadOfNewEntryTag()
+    {
+        var deal = LeaderboardTests.Deal("1");
+        var caption = Parse(Format([deal], [new(deal, Entered: true, Returned: true)]))
+            .DocumentNode.SelectSingleNode("/figure/figcaption");
+        Assert.Equal("返榜", Assert.Single(caption.SelectNodes("./code")).InnerText);
+    }
+
+    [Fact]
     public void TwentyProductsKeepTheirOwnPhotoCopyableTitlePriceAndDetailLinkInOneColumn()
     {
         var deals = Enumerable.Range(1, 20).Select(i => LeaderboardTests.Deal(i.ToString(), i) with
@@ -42,7 +51,7 @@ public sealed class RichMessageFormatterTests
         var html = Format([deal], [new(deal, Entered: true, Changed: true, FromRank: 5,
             FromPrice: new string('价', 200), PriceChanged: true)], polls: 12);
         var card = Parse(html).DocumentNode.SelectSingleNode("/figure/figcaption");
-        Assert.Equal(new[] { "新进", "↑4", "变价", "霸榜12次" }, card.SelectNodes("./code").Select(x => x.InnerText));
+        Assert.Equal(new[] { "新进", "↑4", "变价", "霸榜≥60分钟" }, card.SelectNodes("./code").Select(x => x.InnerText));
         Assert.Contains("999.99元", card.SelectNodes("./b").Last().InnerText);
         Assert.DoesNotContain(new string('价', 100), card.InnerText);
     }
@@ -106,7 +115,7 @@ public sealed class RichMessageFormatterTests
         var now = new TestClock().GetUtcNow();
         var policy = new NotificationPolicy(new());
         return RichMessageFormatter.Format(new(policy.PeriodStart(now), events ?? []),
-            new(now, deals.Select(x => new RankedDeal(x, polls, now)).ToList()), new(), policy);
+            new(now, deals.Select(x => new RankedDeal(x, polls, now.AddMinutes(-(polls - 1) * 15))).ToList()), new(), policy);
     }
 
     private static HtmlDocument Parse(string html)

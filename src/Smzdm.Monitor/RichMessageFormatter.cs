@@ -17,11 +17,10 @@ public static class RichMessageFormatter
         if (snapshot.Items.Count is < 1 or > 20) throw new InvalidDataException("图文榜单需要 1–20 个商品。");
         var events = report.Events.ToDictionary(x => x.Deal.Id);
         var start = policy.LocalTime(report.PeriodStart);
-        var end = policy.LocalTime(policy.PeriodEnd(report.PeriodStart));
         var updated = policy.LocalTime(snapshot.CapturedAt);
-        var html = new StringBuilder($"<h3>什么值得买 TOP {snapshot.Items.Count}</h3>\n");
-        html.Append($"<p>{updated:MM-dd} · {start:HH:mm}–{end:HH:mm} · 更新 {updated:HH:mm}</p>\n");
-        html.Append($"<p>新进 {report.Events.Count(x => x.Entered)} · 变化 {report.Events.Count(x => x.Changed)} · 掉榜 {report.Events.Count(x => x.Exited)}</p>\n");
+        var html = new StringBuilder($"<h3>什么值得买 TOP {snapshot.Items.Count}{(report.IsBaseline ? " · 基础榜单" : "")}</h3>\n");
+        html.Append($"<p>{start:MM-dd HH:mm} 起 · 更新 {updated:MM-dd HH:mm}</p>\n");
+        html.Append($"<p>新进 {report.Events.Count(x => x.Entered && !x.Returned)} · 返榜 {report.Events.Count(x => x.Returned)} · 变化 {report.Events.Count(x => x.Changed)} · 掉榜 {report.Events.Count(x => x.Exited)}</p>\n");
 
         for (var index = 0; index < snapshot.Items.Count; index++)
         {
@@ -35,7 +34,7 @@ public static class RichMessageFormatter
             if (change?.PriceChanged == true && change.FromPrice != deal.Price)
                 html.Append(Encode(Price(change.FromPrice, 64))).Append('→');
             html.Append("<b>").Append(Encode(Price(deal.Price, 96))).Append("</b>");
-            foreach (var tag in Tags(item, change, options))
+            foreach (var tag in Tags(item, change, snapshot.CapturedAt, options))
                 html.Append(" <code>").Append(Encode(tag)).Append("</code>");
             html.Append($" · <a href=\"{Encode(deal.Url)}\">详情</a></figcaption></figure>\n");
             if (index + 1 < snapshot.Items.Count) html.AppendLine("<hr/>");
@@ -59,9 +58,9 @@ public static class RichMessageFormatter
     public static bool ValidLength(string text) => !string.IsNullOrWhiteSpace(text) &&
         Encoding.UTF8.GetByteCount(MessageFormatter.PlainText(text)) <= MaxTextBytes;
 
-    private static IEnumerable<string> Tags(RankedDeal item, ReportEvent? change, MonitorOptions options)
+    private static IEnumerable<string> Tags(RankedDeal item, ReportEvent? change, DateTimeOffset now, MonitorOptions options)
     {
-        if (change?.Entered == true) yield return "新进";
+        if (change?.Entered == true) yield return change.Returned ? "返榜" : "新进";
         var moved = change?.FromRank is int rank && rank != item.Deal.Rank;
         if (moved)
         {
@@ -70,7 +69,7 @@ public static class RichMessageFormatter
         }
         if (change?.PriceChanged == true) yield return "变价";
         if (change?.Changed == true && !moved && !change.PriceChanged) yield return "更新";
-        if (item.ConsecutivePolls >= options.DominancePolls) yield return $"霸榜{item.ConsecutivePolls}次";
+        if (Leaderboard.IsDominant(item, now, options)) yield return $"霸榜≥{options.DominanceMinutes}分钟";
     }
 
     private static string Price(string? price, int limit) =>

@@ -42,7 +42,7 @@ try
             ? await new SmzdmClient(http, parser, monitor).FetchAsync(CancellationToken.None)
             : parser.Parse(await File.ReadAllTextAsync(htmlPath), monitor.TopCount);
         var preview = Leaderboard.Compare(null, deals, DateTimeOffset.UtcNow, monitor);
-        var report = NotificationPolicy.BuildReport(null, preview, policy.PeriodStart(preview.Snapshot.CapturedAt));
+        var report = NotificationPolicy.BuildReport(preview, policy.PeriodStart(preview.Snapshot.CapturedAt));
         Console.WriteLine(MessageFormatter.PlainText(RichMessageFormatter.Format(report, preview.Snapshot, monitor, policy)));
         if (policy.IsQuiet(preview.Snapshot.CapturedAt)) Console.WriteLine("当前为静默时段，正式运行时不会请求 Telegram。");
         Console.WriteLine($"预览完成：{deals.Count} 条；未发 Telegram，未修改状态。");

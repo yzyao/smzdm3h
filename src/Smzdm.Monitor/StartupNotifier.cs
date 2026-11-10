@@ -28,8 +28,9 @@ public sealed class StartupNotifier(
             "✅ 什么值得买监控已启动",
             $"启动时间：{policy.LocalTime(now):yyyy-MM-dd HH:mm:ss}（{policy.Options.TimeZoneId}）",
             $"采集：每 {monitor.IntervalMinutes} 分钟，TOP {monitor.TopCount}（按本地零点对齐）",
-            $"榜单：每 {policy.Options.NewMessageIntervalHours} 小时新发 1 条，其间更新原消息",
-            $"霸榜：连续 {monitor.DominancePolls} 次在榜",
+            "榜单：每天 07:00 建立基线；新进发新消息，其他变化更新最近消息，无变化不操作",
+            "去重：同一商品当天只触发一次新消息，重启继续使用当天榜单",
+            $"霸榜：连续在榜满 {monitor.DominanceMinutes} 分钟",
             $"静默：{quiet}",
             $"最近成功采集：{lastFetch}",
             $"下次采集：{next}");

@@ -16,8 +16,10 @@ public sealed class StartupNotifierTests
         Assert.Null(call.MessageId);
         var text = MessageFormatter.PlainText(call.Text);
         Assert.Contains("监控已启动", text);
-        Assert.Contains("每 30 分钟，TOP 20", text);
-        Assert.Contains("每 1 小时新发 1 条", text);
+        Assert.Contains("每 15 分钟，TOP 20", text);
+        Assert.Contains("每天 07:00 建立基线", text);
+        Assert.Contains("无变化不操作", text);
+        Assert.Contains("连续在榜满 60 分钟", text);
         Assert.Contains("01:00–07:00", text);
         Assert.Contains("最近成功采集：暂无，等待首次采集", text);
         Assert.Contains("下次采集：立即", text);

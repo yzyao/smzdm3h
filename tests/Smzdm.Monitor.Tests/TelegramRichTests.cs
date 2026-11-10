@@ -92,7 +92,7 @@ public sealed class TelegramRichTests
         var policy = new NotificationPolicy(new());
         var deals = Enumerable.Range(1, 20).Select(i => LeaderboardTests.Deal(i.ToString(), i)).ToList();
         var comparison = Leaderboard.Compare(null, deals, clock.Now, new());
-        var report = NotificationPolicy.BuildReport(null, comparison, policy.PeriodStart(clock.Now));
+        var report = NotificationPolicy.BuildReport(comparison, policy.PeriodStart(clock.Now));
         return new(RichMessageFormatter.Format(report, comparison.Snapshot, new(), policy),
             report.PeriodStart, clock.Now, deals, IsRich: true);
     }

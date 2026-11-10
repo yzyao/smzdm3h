@@ -6,6 +6,13 @@ namespace Smzdm.Monitor.Tests;
 public sealed class CollectionScheduleTests
 {
     [Theory]
+    [InlineData(15, "2026-11-10T10:12:00+08:00", "2026-11-10T10:15:00+08:00")]
+    [InlineData(10, "2026-11-10T10:12:00+08:00", "2026-11-10T10:20:00+08:00")]
+    [InlineData(45, "2026-11-10T06:59:00+08:00", "2026-11-10T07:00:00+08:00")]
+    public void FasterScansStayAlignedAndAlwaysIncludeDailyBaseline(int minutes, string now, string expected) =>
+        Assert.Equal(DateTimeOffset.Parse(expected), Schedule(minutes).AtOrAfter(DateTimeOffset.Parse(now)));
+
+    [Theory]
     [InlineData("2026-11-10T10:12:00+08:00", "2026-11-10T10:30:00+08:00")]
     [InlineData("2026-11-10T10:29:59.9999999+08:00", "2026-11-10T10:30:00+08:00")]
     [InlineData("2026-11-10T10:30:00+08:00", "2026-11-10T10:30:00+08:00")]

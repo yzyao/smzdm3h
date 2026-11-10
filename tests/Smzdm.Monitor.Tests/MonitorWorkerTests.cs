@@ -9,27 +9,38 @@ public sealed class MonitorWorkerTests : IDisposable
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "smzdm-worker-" + Guid.NewGuid());
 
     [Fact]
-    public async Task MidHourStartupCollectsSilentBaselineThenSendsAtWholeHoursAndEditsAtHalfHours()
+    public async Task StartupBaselineThenQuarterHourScansSendOnlyNewProductsAndEditPriceChanges()
     {
         var clock = new TestClock { Now = At("10:12") };
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var source = new Source(clock) { FetchDuration = TimeSpan.FromSeconds(17) };
+        var source = new Source(clock)
+        {
+            FetchDuration = TimeSpan.FromSeconds(17),
+            DealsAt = now => now >= At("10:45") ? [LeaderboardTests.Deal("3", price: "9元"), LeaderboardTests.Deal("1", 2)]
+                : now >= At("10:30") ? [LeaderboardTests.Deal("3"), LeaderboardTests.Deal("1", 2)]
+                : [LeaderboardTests.Deal("1"), LeaderboardTests.Deal("2", 2)]
+        };
         var sender = new Sender(clock, stop, stopAfter: 3);
         await RunAsync(clock, source, sender, stop.Token);
-        Assert.Equal(new[] { At("10:12"), At("10:30"), At("11:00"), At("11:30"), At("12:00") }, source.Calls);
-        Assert.Equal(new[] { At("11:00").AddSeconds(17), At("11:30").AddSeconds(17), At("12:00").AddSeconds(17) },
+        Assert.Equal(new[] { At("10:12"), At("10:15"), At("10:30"), At("10:45") }, source.Calls);
+        Assert.Equal(new[] { At("10:12").AddSeconds(17), At("10:30").AddSeconds(17), At("10:45").AddSeconds(17) },
             sender.Calls.Select(x => x.At));
         Assert.Null(sender.Calls[0].EditedId);
-        Assert.Equal(100, sender.Calls[1].EditedId);
-        Assert.Null(sender.Calls[2].EditedId);
+        Assert.Null(sender.Calls[1].EditedId);
+        Assert.Equal(101, sender.Calls[2].EditedId);
     }
 
     [Fact]
-    public async Task RestartWithOffGridSnapshotKeepsHalfHourUpdateAndReusesPublishedMessage()
+    public async Task RestartRestoresTodaysMessageWithoutDuplicateThenKeepsQuarterHourGrid()
     {
         var clock = new TestClock { Now = At("10:20") };
         using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var source = new Source(clock);
+        var source = new Source(clock)
+        {
+            DealsAt = now => now >= At("10:45") ? [LeaderboardTests.Deal("3"), LeaderboardTests.Deal("1", 2)]
+                : now >= At("10:30") ? [LeaderboardTests.Deal("1", price: "9元"), LeaderboardTests.Deal("2", 2)]
+                : [LeaderboardTests.Deal("1"), LeaderboardTests.Deal("2", 2)]
+        };
         var sender = new Sender(clock, stop, stopAfter: 2);
         var options = Options();
         var store = new StateStore(options);
@@ -38,10 +49,11 @@ public sealed class MonitorWorkerTests : IDisposable
         {
             DestinationKey = sender.DestinationKey,
             Snapshot = snapshot,
-            Published = new(55, At("10:00"), "已发榜单", IsRich: true)
+            Published = new(55, At("07:00"), "已发榜单", IsRich: true),
+            NotificationDay = At("07:00"), SeenIds = ["1", "2"], NotifiedIds = ["1", "2"]
         }, default);
         await RunAsync(clock, source, sender, stop.Token);
-        Assert.Equal(new[] { At("10:30"), At("11:00") }, source.Calls);
+        Assert.Equal(new[] { At("10:20"), At("10:30"), At("10:45") }, source.Calls);
         Assert.Equal(55, sender.Calls[0].EditedId);
         Assert.Null(sender.Calls[1].EditedId);
     }
@@ -72,11 +84,13 @@ public sealed class MonitorWorkerTests : IDisposable
         public List<Deal> Deals { get; } = [LeaderboardTests.Deal("1"), LeaderboardTests.Deal("2", 2)];
         public List<DateTimeOffset> Calls { get; } = [];
         public TimeSpan FetchDuration { get; init; }
+        public Func<DateTimeOffset, List<Deal>>? DealsAt { get; init; }
         public Task<List<Deal>> FetchAsync(CancellationToken cancellationToken)
         {
-            Calls.Add(clock.GetUtcNow());
+            var now = clock.GetUtcNow();
+            Calls.Add(now);
             clock.Now += FetchDuration;
-            return Task.FromResult(Deals);
+            return Task.FromResult(DealsAt?.Invoke(now) ?? Deals);
         }
     }
 

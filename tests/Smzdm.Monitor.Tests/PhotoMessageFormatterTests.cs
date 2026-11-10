@@ -16,7 +16,7 @@ public sealed class PhotoMessageFormatterTests
             Title = string.Concat(Enumerable.Repeat("<&😀长标题>", 100)), Price = new string('价', 200)
         }).ToList();
         var comparison = Leaderboard.Compare(null, deals, DateTimeOffset.UtcNow, options);
-        var report = NotificationPolicy.BuildReport(null, comparison, policy.PeriodStart(comparison.Snapshot.CapturedAt));
+        var report = NotificationPolicy.BuildReport(comparison, policy.PeriodStart(comparison.Snapshot.CapturedAt));
         var caption = PhotoMessageFormatter.Format(report, comparison.Snapshot, options, policy);
         Assert.True(MessageFormatter.PlainText(caption).Length <= 1000);
         Assert.All(deals, deal => Assert.Contains($"href=\"{deal.Url}\"", caption));

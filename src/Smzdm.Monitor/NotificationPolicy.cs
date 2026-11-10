@@ -3,15 +3,12 @@ namespace Smzdm.Monitor;
 public sealed class NotificationOptions
 {
     public bool NotifyOnStartup { get; set; } = true;
-    public int NewMessageIntervalHours { get; set; } = 1;
     public int QuietStartHour { get; set; } = 1;
     public int QuietEndHour { get; set; } = 7;
     public string TimeZoneId { get; set; } = "Asia/Shanghai";
 
     public void Validate()
     {
-        if (NewMessageIntervalHours is < 1 or > 3)
-            throw new InvalidOperationException("Notifications:NewMessageIntervalHours 只能为 1、2 或 3。");
         if (QuietStartHour is < 0 or > 23 || QuietEndHour is < 0 or > 23)
             throw new InvalidOperationException("静默开始和结束小时必须为 0–23；设置相同值可关闭静默。");
         _ = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
@@ -41,19 +38,22 @@ public sealed class NotificationPolicy
         return start < end ? hour >= start && hour < end : hour >= start || hour < end;
     }
 
-    // Periods are aligned to local midnight: 1h -> 10:00,11:00; 2h -> 10:00,12:00.
+    // A notification day starts at 07:00, independently of the quiet-hour configuration.
     public DateTimeOffset PeriodStart(DateTimeOffset now)
     {
         var local = LocalTime(now);
-        var hour = local.Hour / Options.NewMessageIntervalHours * Options.NewMessageIntervalHours;
-        return new DateTimeOffset(local.Year, local.Month, local.Day, hour, 0, 0, local.Offset).ToUniversalTime();
+        var boundary = local.Date.AddHours(7);
+        if (local.DateTime < boundary) boundary = boundary.AddDays(-1);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(boundary, _zone));
     }
 
-    public DateTimeOffset PeriodEnd(DateTimeOffset start) => start.AddHours(Options.NewMessageIntervalHours);
+    public DateTimeOffset PeriodEnd(DateTimeOffset start) =>
+        new(TimeZoneInfo.ConvertTimeToUtc(LocalTime(start).Date.AddDays(1).AddHours(7), _zone));
 
-    public static NotificationReport BuildReport(NotificationReport? previous, Comparison comparison, DateTimeOffset period)
+    public static NotificationReport BuildReport(Comparison comparison, DateTimeOffset period)
     {
-        var events = previous?.PeriodStart == period ? previous.Events.ToDictionary(x => x.Deal.Id) : [];
+        // Tags describe this scan, rather than accumulating all of the day's movements.
+        var events = new Dictionary<string, ReportEvent>();
         ReportEvent Existing(Deal deal) => events.GetValueOrDefault(deal.Id) ?? new ReportEvent(deal);
         if (!comparison.IsInitial)
         {

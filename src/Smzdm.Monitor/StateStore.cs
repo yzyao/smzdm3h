@@ -34,7 +34,12 @@ public sealed class StateStore
         await using var stream = new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         var state = await JsonSerializer.DeserializeAsync<MonitorState>(stream, JsonOptions, cancellationToken)
             ?? throw new InvalidDataException("state.json 为空；请恢复备份，或移走文件后重新建立基线。");
-        if (state.Version is not (1 or 2) || state.SourceKey is null || state.DestinationKey is null ||
+        if (state.Version is not (1 or 2 or 3) || state.SourceKey is null || state.DestinationKey is null ||
+            state.SeenIds is null || state.NotifiedIds is null ||
+            state.SeenIds.Any(string.IsNullOrWhiteSpace) || state.NotifiedIds.Any(string.IsNullOrWhiteSpace) ||
+            (state.NotificationDay is null && (state.SeenIds.Count > 0 || state.NotifiedIds.Count > 0)) ||
+            (state.Pending?.NewItemIds is { } newIds && (newIds.Any(string.IsNullOrWhiteSpace) ||
+                newIds.Distinct().Count() != newIds.Count)) ||
             (state.Pending is not null && (!ValidText(state.Pending.Text, state.Pending.IsRich) ||
                 (state.Pending.IsRich && state.Pending.Items is null) ||
                 (state.Pending.Items is not null && (state.Pending.Items.Count is < 1 or > 20 ||
