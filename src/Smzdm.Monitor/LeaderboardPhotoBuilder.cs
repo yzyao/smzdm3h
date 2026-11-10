@@ -7,6 +7,7 @@ namespace Smzdm.Monitor;
 public interface ILeaderboardPhotoBuilder
 {
     Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken);
+    Task<IReadOnlyList<byte[]>> BuildProductPhotosAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken);
 }
 
 public sealed class LeaderboardPhotoBuilder(
@@ -23,7 +24,25 @@ public sealed class LeaderboardPhotoBuilder(
         PooledConnectionLifetime = TimeSpan.FromMinutes(10)
     }) { Timeout = TimeSpan.FromSeconds(8) };
 
-    public async Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken)
+    public Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
+        WithThumbnailsAsync(deals, images => Render(deals, images), cancellationToken);
+
+    public Task<IReadOnlyList<byte[]>> BuildProductPhotosAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
+        WithThumbnailsAsync<IReadOnlyList<byte[]>>(deals, images =>
+        {
+            var photos = new List<byte[]>(images.Count);
+            foreach (var thumbnail in images)
+            {
+                using var placeholder = thumbnail is null ? CreatePlaceholder() : null;
+                using var image = SKImage.FromBitmap(thumbnail ?? placeholder!);
+                using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 85);
+                photos.Add(encoded.ToArray());
+            }
+            return photos;
+        }, cancellationToken);
+
+    private async Task<T> WithThumbnailsAsync<T>(IReadOnlyList<Deal> deals,
+        Func<IReadOnlyList<SKBitmap?>, T> render, CancellationToken cancellationToken)
     {
         if (deals.Count is < 1 or > 20) throw new InvalidDataException("图片榜单需要 1–20 个商品。");
         var thumbnails = new SKBitmap?[deals.Count];
@@ -45,12 +64,24 @@ public sealed class LeaderboardPhotoBuilder(
             cancellationToken.ThrowIfCancellationRequested();
             var missing = thumbnails.Count(x => x is null);
             if (missing > 0) logger.LogWarning("{Missing}/{Total} 张商品图不可用，对应位置显示占位，商品标题和链接保留。", missing, deals.Count);
-            return Render(deals, thumbnails);
+            return render(thumbnails);
         }
         finally
         {
             foreach (var image in thumbnails) image?.Dispose();
         }
+    }
+
+    private static SKBitmap CreatePlaceholder()
+    {
+        var bitmap = new SKBitmap(ThumbnailSize, ThumbnailSize);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(new SKColor(237, 241, 245));
+        using var ink = new SKPaint { Color = new SKColor(130, 140, 150), IsAntialias = true };
+        using var typeface = SKTypeface.FromFamilyName("DejaVu Sans");
+        using var font = new SKFont(typeface, 18);
+        canvas.DrawText("NO IMAGE", ThumbnailSize / 2f, ThumbnailSize / 2f + 6, SKTextAlign.Center, font, ink);
+        return bitmap;
     }
 
     private async Task<SKBitmap?> DownloadAsync(string? imageUrl, CancellationToken cancellationToken)

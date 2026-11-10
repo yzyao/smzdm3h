@@ -46,7 +46,7 @@ public sealed class MonitorEngine(
             Published = State.Published,
             // Coalesce retries into one current report; never accumulate historical messages.
             Pending = quiet ? null : new PendingNotification(
-                PhotoMessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now, deals)
+                RichMessageFormatter.Format(report, comparison.Snapshot, options, policy), period, now, deals, IsRich: true)
         };
         await SaveAsync(next, cancellationToken);
         logger.LogInformation("榜单已保存：{Count} 条，新进 {New}，掉榜 {Exits}，变化 {Changes}，新增霸榜 {Dominant}；{Delivery}。",
@@ -64,9 +64,11 @@ public sealed class MonitorEngine(
             await SaveAsync(Copy(pending: null), cancellationToken);
             return;
         }
-        var published = State.Published?.PeriodStart == pending.PeriodStart ? State.Published : null;
+        // Photo messages cannot be converted to rich messages using editMessageText.
+        var published = State.Published?.PeriodStart == pending.PeriodStart && State.Published.IsRich == pending.IsRich
+            ? State.Published : null;
         var payloadKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            JsonSerializer.Serialize(new { pending.Text, pending.Items }))));
+            JsonSerializer.Serialize(new { pending.Text, pending.Items, pending.IsRich }))));
         if (published?.PayloadKey == payloadKey)
         {
             await SaveAsync(Copy(pending: null), cancellationToken);
@@ -75,7 +77,7 @@ public sealed class MonitorEngine(
         var messageId = await sender.PublishLeaderboardAsync(pending, published?.MessageId,
             policy.PeriodEnd(pending.PeriodStart), cancellationToken);
         var next = Copy(pending: null);
-        next.Published = new PublishedMessage(messageId, pending.PeriodStart, pending.Text, payloadKey);
+        next.Published = new PublishedMessage(messageId, pending.PeriodStart, pending.Text, payloadKey, pending.IsRich);
         await SaveAsync(next, cancellationToken);
         logger.LogInformation("Telegram 榜单{Action}成功，消息 ID {MessageId}。", published is null ? "发送" : "编辑", messageId);
     }

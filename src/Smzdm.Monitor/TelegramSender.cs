@@ -46,6 +46,8 @@ public sealed class TelegramSender(
     public async Task<long> PublishLeaderboardAsync(PendingNotification notification, long? messageId,
         DateTimeOffset expiresAt, CancellationToken cancellationToken)
     {
+        if (notification.IsRich)
+            return await PublishRichAsync(notification, messageId, expiresAt, cancellationToken);
         // Pending v2 text-only state remains readable across upgrades.
         if (notification.Items is null)
             return await PublishAsync(notification.Text, messageId, expiresAt, cancellationToken);
@@ -77,6 +79,46 @@ public sealed class TelegramSender(
             var image = new ByteArrayContent(photo);
             image.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
             form.Add(image, "photo", "leaderboard.jpg");
+            return form;
+        }, messageId, expiresAt, cancellationToken);
+    }
+
+    private async Task<long> PublishRichAsync(PendingNotification notification, long? messageId,
+        DateTimeOffset expiresAt, CancellationToken cancellationToken)
+    {
+        EnsureCanPublish(expiresAt);
+        if (notification.Items is not { Count: >= 1 and <= 20 } items || !RichMessageFormatter.ValidLength(notification.Text))
+            throw new TelegramDeliveryException("图文榜单商品数量或长度无效。");
+        // Download only trusted image hosts and upload independent JPEGs. A failed image gets
+        // a placeholder, so one blocked CDN response cannot reject the entire rich message.
+        var photos = await photoBuilder.BuildProductPhotosAsync(items, cancellationToken);
+        if (photos.Count != items.Count) throw new InvalidDataException("商品图片数量与图文榜单不一致。");
+        var richMessage = JsonSerializer.Serialize(new
+        {
+            html = notification.Text,
+            media = photos.Select((_, index) => new
+            {
+                id = RichMessageFormatter.PhotoId(index),
+                media = new { type = "photo", media = $"attach://{RichMessageFormatter.PhotoId(index)}" }
+            }),
+            skip_entity_detection = true
+        }, JsonOptions);
+        return await RequestAsync(messageId.HasValue ? "editMessageText" : "sendRichMessage", () =>
+        {
+            var form = new MultipartFormDataContent();
+            form.Add(new StringContent(options.ChatId), "chat_id");
+            if (messageId.HasValue)
+                form.Add(new StringContent(messageId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "message_id");
+            else if (options.MessageThreadId.HasValue)
+                form.Add(new StringContent(options.MessageThreadId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)), "message_thread_id");
+            form.Add(new StringContent(richMessage), "rich_message");
+            for (var index = 0; index < photos.Count; index++)
+            {
+                var photo = new ByteArrayContent(photos[index]);
+                photo.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+                var id = RichMessageFormatter.PhotoId(index);
+                form.Add(photo, id, $"{id}.jpg");
+            }
             return form;
         }, messageId, expiresAt, cancellationToken);
     }

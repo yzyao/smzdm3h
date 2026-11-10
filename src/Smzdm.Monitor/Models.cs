@@ -3,8 +3,10 @@ namespace Smzdm.Monitor;
 public sealed record Deal(string Id, int Rank, string Title, string Price, string Url, string ImageUrl = "");
 public sealed record RankedDeal(Deal Deal, int ConsecutivePolls, DateTimeOffset FirstSeenAt);
 public sealed record Snapshot(DateTimeOffset CapturedAt, List<RankedDeal> Items);
-public sealed record PendingNotification(string Text, DateTimeOffset PeriodStart, DateTimeOffset CapturedAt, List<Deal>? Items = null);
-public sealed record PublishedMessage(long MessageId, DateTimeOffset PeriodStart, string Text, string? PayloadKey = null);
+public sealed record PendingNotification(string Text, DateTimeOffset PeriodStart, DateTimeOffset CapturedAt,
+    List<Deal>? Items = null, bool IsRich = false);
+public sealed record PublishedMessage(long MessageId, DateTimeOffset PeriodStart, string Text,
+    string? PayloadKey = null, bool IsRich = false);
 public sealed record ReportEvent(Deal Deal, bool Entered = false, bool Changed = false, bool Exited = false,
     bool ReachedDominance = false, int? FromRank = null, string? FromPrice = null, bool PriceChanged = false);
 public sealed record NotificationReport(DateTimeOffset PeriodStart, List<ReportEvent> Events);

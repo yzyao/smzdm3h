@@ -11,6 +11,48 @@ public sealed class PersistenceTests : IDisposable
     private MonitorOptions Options => new() { DataDirectory = _directory, TopCount = 2 };
 
     [Fact]
+    public async Task UpgradeStartsRichMessageInsteadOfTryingToEditLegacyPhotoThenResumesEditing()
+    {
+        var source = new StubSource();
+        var first = Engine(source, new StubSender());
+        await first.InitializeAsync(default);
+        await first.CollectAsync(default);
+        first.State.Published = new(55, first.State.Pending!.PeriodStart, "旧图片说明");
+        await new StateStore(Options).SaveAsync(first.State, default);
+        var sender = new StubSender();
+        var restarted = Engine(source, sender);
+        await restarted.InitializeAsync(default);
+        await restarted.DeliverAsync(default);
+        Assert.Null(Assert.Single(sender.Calls).MessageId);
+        Assert.True(restarted.State.Published!.IsRich);
+        var messageId = restarted.State.Published.MessageId;
+        _clock.Now += TimeSpan.FromMinutes(30);
+        var again = Engine(source, sender);
+        await again.InitializeAsync(default);
+        await again.CollectAsync(default);
+        await again.DeliverAsync(default);
+        Assert.Equal(messageId, sender.Calls[1].MessageId);
+    }
+
+    [Fact]
+    public async Task LongRichPendingMessageSurvivesStateRoundTripWithAllTwentyProducts()
+    {
+        var deals = Enumerable.Range(1, 20).Select(i => LeaderboardTests.Deal(i.ToString(), i) with
+            { Title = new string('长', 220) }).ToList();
+        var policy = new NotificationPolicy(new());
+        var comparison = Leaderboard.Compare(null, deals, _clock.Now, Options);
+        var report = NotificationPolicy.BuildReport(null, comparison, policy.PeriodStart(_clock.Now));
+        var text = RichMessageFormatter.Format(report, comparison.Snapshot, Options, policy);
+        Assert.True(MessageFormatter.PlainText(text).Length > MessageFormatter.MaxLength);
+        var store = new StateStore(Options);
+        await store.SaveAsync(new() { Pending = new(text, report.PeriodStart, _clock.Now, deals, IsRich: true) }, default);
+        var pending = (await store.LoadAsync(default)).Pending!;
+        Assert.True(pending.IsRich);
+        Assert.Equal(text, pending.Text);
+        Assert.Equal(deals, pending.Items);
+    }
+
+    [Fact]
     public async Task SendsOneMessagePerHourAndEditsSameMessageAtHalfHour()
     {
         var source = new StubSource();

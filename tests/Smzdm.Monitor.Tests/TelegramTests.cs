@@ -121,6 +121,9 @@ public sealed class TelegramTests
 
     private sealed class UnusedPhotoBuilder : ILeaderboardPhotoBuilder
     {
+        public Task<IReadOnlyList<byte[]>> BuildProductPhotosAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("文本消息不应生成图片。");
+
         public Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("文本消息不应生成图片。");
     }

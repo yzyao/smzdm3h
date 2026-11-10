@@ -9,6 +9,28 @@ namespace Smzdm.Monitor.Tests;
 public sealed class LeaderboardPhotoBuilderTests
 {
     [Fact]
+    public async Task IndependentProductPhotosKeepOrderAndUsePlaceholderForUnavailableImages()
+    {
+        using var client = new HttpClient(new ImageHandler());
+        var builder = new LeaderboardPhotoBuilder(client, new(), NullLogger<LeaderboardPhotoBuilder>.Instance);
+        var photos = await builder.BuildProductPhotosAsync([
+            LeaderboardTests.Deal("1") with { ImageUrl = "https://qny.smzdm.com/red.jpg" },
+            LeaderboardTests.Deal("2", 2) with { ImageUrl = "https://qny.smzdm.com/blue.jpg" },
+            LeaderboardTests.Deal("3", 3) with { ImageUrl = "https://evil.test/image.jpg" }
+        ], default);
+        Assert.Equal(3, photos.Count);
+        using var red = SKBitmap.Decode(photos[0]);
+        using var blue = SKBitmap.Decode(photos[1]);
+        using var missing = SKBitmap.Decode(photos[2]);
+        Assert.Equal(224, red.Width);
+        Assert.Equal(224, red.Height);
+        Assert.True(red.GetPixel(30, 30).Red > 200);
+        Assert.True(blue.GetPixel(30, 30).Blue > 200);
+        Assert.InRange(missing.GetPixel(30, 30).Red, 230, 245);
+        Assert.All(photos, photo => Assert.True(photo.Length < 100_000));
+    }
+
+    [Fact]
     public async Task RendersTwentyThumbnailsInRankOrderAndWithinTelegramDimensions()
     {
         using var client = new HttpClient(new ImageHandler());

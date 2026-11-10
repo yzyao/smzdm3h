@@ -16,7 +16,7 @@ public sealed class MonitorOptions
             uri.Scheme != "https" || uri.Host != "faxian.smzdm.com")
             throw new InvalidOperationException("Monitor:SourceUrl 必须为 https://faxian.smzdm.com/ 下的榜单地址。");
         if (IntervalMinutes is < 1 or > 1440 || TopCount is < 1 or > 20 || DominancePolls is < 2 or > 10000)
-            throw new InvalidOperationException("IntervalMinutes 范围 1–1440，图片榜单 TopCount 范围 1–20，DominancePolls 范围 2–10000。");
+            throw new InvalidOperationException("IntervalMinutes 范围 1–1440，图文榜单 TopCount 范围 1–20，DominancePolls 范围 2–10000。");
         if (string.IsNullOrWhiteSpace(DataDirectory) || string.IsNullOrWhiteSpace(UserAgent))
             throw new InvalidOperationException("DataDirectory 和 UserAgent 不能为空。");
     }

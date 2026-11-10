@@ -114,6 +114,9 @@ public sealed class TelegramPhotoTests
 
     private sealed class StubPhotoBuilder : ILeaderboardPhotoBuilder
     {
+        public Task<IReadOnlyList<byte[]>> BuildProductPhotosAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("旧图片消息不应生成独立商品图。");
+
         public int Calls { get; private set; }
         public Action? BeforeReturn { get; init; }
         public Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken)
