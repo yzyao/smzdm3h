@@ -23,6 +23,8 @@ public sealed class MonitorWorker(
         using var dataLock = store.AcquireLock();
         await engine.InitializeAsync(stoppingToken);
         var schedule = new CollectionSchedule(options, policy);
+        logger.LogInformation("值得买采集及商品图片出口：{Route}。", string.IsNullOrWhiteSpace(options.ProxyDbConnectionString)
+            ? SourceProxy.Display(options.ProxyUrl) : "Vantage 数据库代理池：成功节点优先，连接失败切换，单轮最多 3 个");
         logger.LogInformation("监控启动，按固定时点每 {Minutes} 分钟采集 TOP {Count}，霸榜门槛 {MinutesDominant} 分钟。",
             options.IntervalMinutes, options.TopCount, options.DominanceMinutes);
         logger.LogInformation("每天 07:00 建立基线；新进发新消息，其他变化更新最近消息；静默 {Start:00}:00–{End:00}:00（{Zone}）。",

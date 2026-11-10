@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
@@ -16,13 +15,8 @@ public sealed class LeaderboardPhotoBuilder(
     private const int MaxImageBytes = 4 * 1024 * 1024;
     private const int ThumbnailSize = 224;
 
-    public static HttpClient CreateHttpClient() => new(new SocketsHttpHandler
-    {
-        AllowAutoRedirect = false,
-        AutomaticDecompression = DecompressionMethods.All,
-        UseCookies = false,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10)
-    }) { Timeout = TimeSpan.FromSeconds(8) };
+    public static HttpClient CreateHttpClient(MonitorOptions options) =>
+        new(SourceProxy.CreateHandler(options, allowAutoRedirect: false)) { Timeout = TimeSpan.FromSeconds(8) };
 
     public Task<byte[]> BuildAsync(IReadOnlyList<Deal> deals, CancellationToken cancellationToken) =>
         WithThumbnailsAsync(deals, images => Render(deals, images), cancellationToken);

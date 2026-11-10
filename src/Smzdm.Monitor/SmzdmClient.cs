@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace Smzdm.Monitor;
 
 public interface IDealSource
@@ -22,10 +20,6 @@ public sealed class SmzdmClient(HttpClient client, SmzdmParser parser, MonitorOp
         return parser.Parse(html, options.TopCount);
     }
 
-    public static HttpClient CreateHttpClient() => new(new SocketsHttpHandler
-    {
-        AutomaticDecompression = DecompressionMethods.All,
-        UseCookies = false,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10)
-    }) { Timeout = TimeSpan.FromSeconds(40), MaxResponseContentBufferSize = 8 * 1024 * 1024 };
+    public static HttpClient CreateHttpClient(MonitorOptions options) => new(SourceProxy.CreateHandler(options))
+        { Timeout = TimeSpan.FromSeconds(40), MaxResponseContentBufferSize = 8 * 1024 * 1024 };
 }

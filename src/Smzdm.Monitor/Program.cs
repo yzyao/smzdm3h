@@ -37,9 +37,9 @@ try
     var parser = new SmzdmParser();
     if (dryRun)
     {
-        using var http = SmzdmClient.CreateHttpClient();
+        using var clients = new SourceHttpClients(monitor, Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance);
         var deals = htmlPath is null
-            ? await new SmzdmClient(http, parser, monitor).FetchAsync(CancellationToken.None)
+            ? await new SmzdmClient(clients.Crawler, parser, monitor).FetchAsync(CancellationToken.None)
             : parser.Parse(await File.ReadAllTextAsync(htmlPath), monitor.TopCount);
         var preview = Leaderboard.Compare(null, deals, DateTimeOffset.UtcNow, monitor);
         var report = NotificationPolicy.BuildReport(preview, policy.PeriodStart(preview.Snapshot.CapturedAt));
@@ -53,9 +53,10 @@ try
     builder.Services.AddSingleton(store);
     builder.Services.AddSingleton(policy);
     builder.Services.AddSingleton(TimeProvider.System);
-    builder.Services.AddSingleton<IDealSource>(_ => new SmzdmClient(SmzdmClient.CreateHttpClient(), parser, monitor));
+    builder.Services.AddSingleton<SourceHttpClients>();
+    builder.Services.AddSingleton<IDealSource>(provider => new SmzdmClient(provider.GetRequiredService<SourceHttpClients>().Crawler, parser, monitor));
     builder.Services.AddSingleton<ILeaderboardPhotoBuilder>(provider => new LeaderboardPhotoBuilder(
-        LeaderboardPhotoBuilder.CreateHttpClient(), monitor,
+        provider.GetRequiredService<SourceHttpClients>().Images, monitor,
         provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LeaderboardPhotoBuilder>>()));
     builder.Services.AddSingleton<INotificationSender>(provider => new TelegramSender(new HttpClient
         { Timeout = TimeSpan.FromSeconds(30) }, telegram, policy, TimeProvider.System,

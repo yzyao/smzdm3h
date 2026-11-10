@@ -8,6 +8,8 @@ public sealed class MonitorOptions
     public int DominanceMinutes { get; set; } = 60;
     public string DataDirectory { get; set; } = "data";
     public string Cookie { get; set; } = "";
+    public string ProxyUrl { get; set; } = "";
+    public string ProxyDbConnectionString { get; set; } = "";
     public string UserAgent { get; set; } = "Mozilla/5.0";
 
     public void Validate()
@@ -19,6 +21,14 @@ public sealed class MonitorOptions
             throw new InvalidOperationException("IntervalMinutes 范围 1–1440，图文榜单 TopCount 范围 1–20，DominanceMinutes 范围 1–10080。");
         if (string.IsNullOrWhiteSpace(DataDirectory) || string.IsNullOrWhiteSpace(UserAgent))
             throw new InvalidOperationException("DataDirectory 和 UserAgent 不能为空。");
+        _ = SourceProxy.Parse(ProxyUrl);
+        if (!string.IsNullOrWhiteSpace(ProxyDbConnectionString))
+        {
+            if (!string.IsNullOrWhiteSpace(ProxyUrl))
+                throw new InvalidOperationException("数据库代理池与固定 ProxyUrl 只能配置一种。");
+            try { _ = new Npgsql.NpgsqlConnectionStringBuilder(ProxyDbConnectionString); }
+            catch (ArgumentException) { throw new InvalidOperationException("Monitor:ProxyDbConnectionString 格式无效，请填写 Vantage 的 PostgreSQL 连接串。"); }
+        }
     }
 }
 

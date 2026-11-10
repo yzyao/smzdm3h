@@ -11,6 +11,8 @@ services:
       Monitor__DominanceMinutes: ${MONITOR_DOMINANCE_MINUTES:-60}
       Monitor__DataDirectory: /data
       Monitor__Cookie: ${SMZDM_COOKIE:-}
+      Monitor__ProxyUrl: ${MONITOR_PROXY_URL:-}
+      Monitor__ProxyDbConnectionString: ${VANTAGE_CONNECTION_STRING:-}
       Notifications__NotifyOnStartup: ${NOTIFY_ON_STARTUP:-true}
       Notifications__QuietStartHour: ${QUIET_START_HOUR:-1}
       Notifications__QuietEndHour: ${QUIET_END_HOUR:-7}
