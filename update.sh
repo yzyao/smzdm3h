@@ -15,13 +15,10 @@ git pull --ff-only
 printf '%s\n' 'Building and starting containers...'
 docker compose up -d --build
 
-# Cleanup only runs after pull, build, and container startup have succeeded.
-# These commands clean unused resources across the entire Docker daemon.
-printf '%s\n' 'Cleaning unused Docker build cache...'
-docker builder prune --all --force
-
-printf '%s\n' 'Cleaning unused Docker images...'
-docker image prune --all --force
+# Preserve build cache and tagged base images for subsequent updates. Only remove
+# old dangling images after pull, build and container startup have succeeded.
+printf '%s\n' 'Cleaning dangling Docker images older than 7 days (keeping build cache)...'
+docker image prune --force --filter 'until=168h'
 
 docker compose ps
 printf '%s\n' 'Update complete.'

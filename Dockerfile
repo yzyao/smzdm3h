@@ -11,8 +11,22 @@ RUN dotnet publish src/Smzdm.Monitor/Smzdm.Monitor.csproj -c Release -a "$TARGET
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends libfontconfig1 fonts-dejavu-core \
+# Both font packages and their dependencies are in Ubuntu main. Avoid downloading
+# universe/restricted/multiverse indexes just to install these small dependencies.
+# Use HTTPS and bounded network waits rather than hanging on archive HTTP retries.
+RUN set -eu; \
+    for source in /etc/apt/sources.list.d/*.sources; do \
+        [ -f "$source" ] || continue; \
+        sed -i -e 's|http://|https://|g' -e 's/^Components:.*/Components: main/' "$source"; \
+    done; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i 's|http://|https://|g' /etc/apt/sources.list; \
+    fi; \
+    apt-get -o Acquire::Languages=none -o Acquire::Retries=1 \
+        -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
+        -o APT::Update::Error-Mode=any update \
+    && apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
+        install -y --no-install-recommends libfontconfig1 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data && chown app:app /data
 COPY --from=build /out/ .
